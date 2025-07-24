@@ -1,0 +1,669 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json;
+
+public class CPHInline
+{
+	public bool Execute()
+	{
+		// your main code goes here
+		CPH.LogDebug("Quote Script :: Initialized");
+
+		// Get which command was used to trigger the script
+		//CPH.TryGetArg("command", out string command);
+		var cmdArgs = GetActionArgs(cmdArgs: true);
+		if (cmdArgs == null)
+		{
+			return true;
+		}
+		string command = cmdArgs["command"];
+		string input0 = cmdArgs["input0"];
+
+		// If no command was found, cancel the script
+		if (string.IsNullOrEmpty(command))
+		{
+			return true;
+		}
+
+		// Check which command was used
+		if (command.ToLower() == "!quote")
+		{
+			// If command was `!quote` check what the next input is
+			//CPH.TryGetArg("input0", out string input0);
+			if (string.IsNullOrEmpty(input0))
+			{
+				// If no next input, get a random quote
+				//CPH.RunActionById(actionIdQuoteGetRandom); // Get Random
+				QuoteGetRandom();
+			}
+			else if (Regex.IsMatch(input0, @"^[0-9]+$"))
+			{
+				// If the next input is a number, get the quote with that id
+				//CPH.RunActionById(actionIdQuoteGetIndex); // Get Index
+				QuoteGetFromId();
+				//QuoteGetFromId(filePath, input0);
+			}
+			else
+			{
+				switch (input0.ToLower())
+				{
+					//case "add":
+					//	//CPH.LogDebug("Quote Script :: Adding Quote");
+					//	//CPH.RunActionById(actionIdQuoteAdd); // Add
+					//	QuoteAdd(filePath);
+					//	break;
+					//case "delete":
+					//	//CPH.RunActionById(actionIdQuoteDelete); // Delete
+					//	QuoteDelete(filePath);
+					//	break;
+					//case "edit":
+					//	//CPH.RunActionById(actionIdQuoteEdit); // Edit
+					//	QuoteEdit(filePath);
+					//	break;
+					//case "hide":
+					//	//CPH.RunActionById(actionIdQuoteHide); // Hide
+					//	QuoteHide(filePath);
+					//	break;
+					//case "random":
+					//	//CPH.RunActionById(actionIdQuoteGetRandom); // Get Random
+					//	QuoteGetRandom(filePath);
+					//	break;
+					// If the next input is part of a specific command, cancel the script and let the other instance of the script handle it
+					case "add":
+					case "delete":
+					case "edit":
+					case "find":
+					case "get":
+					case "hide":
+					case "random":
+						return true;
+					default:
+						// If the next input is not part of a specific command, get a quote with that search term
+						//CPH.RunActionById(actionIdQuoteGetSearch); // Get Search
+						QuoteGetFromSearchTerm();
+						break;
+				}
+			}
+		}
+		else
+		{
+			// If command was not `!quote`, check if it is a specific command
+			switch (command.ToLower())
+			{
+				case "!addquote":
+				case "!quoteadd":
+				case "!quote add":
+					// If command was add quote, attempt to add the quote
+					QuoteAdd();
+					break;
+				case "!delquote":
+				case "!quotedelete":
+				case "!quote delete":
+					// If command was delete quote, attempt to delete the quote
+					QuoteDelete();
+					break;
+				case "!editquote":
+				case "!quoteedit":
+				case "!quote edit":
+					// If command was edit quote, attempt to edit the quote
+					QuoteEdit();
+					break;
+				case "!getquote":
+				case "!quoteget":
+				case "!quote get":
+					// If command was get quote by id, attempt to get the quote
+					QuoteGetFromId();
+					break;
+				case "!randquote":
+				case "!quoterandom":
+				case "!quote random":
+					// If command was get random quote, attempt to get a random quote
+					QuoteGetRandom();
+					break;
+				case "!findquote":
+				case "!quotefind":
+				case "!quote find":
+					// If command was get quote by search term, attempt to get a quote
+					QuoteGetFromSearchTerm();
+					break;
+				case "!hidequote":
+				case "!quotehide":
+				case "!quote hide":
+					// If command was hide quote, attempt to hide the quote
+					QuoteHide();
+					break;
+			}
+		}
+
+		return true;
+	}
+
+	//////////////////////
+	// HELPER FUNCTIONS //
+	//////////////////////
+
+	/// <summary>
+	/// Represents a quote entry and its properties.
+	/// </summary>
+	public class QuoteEntry
+	{
+		public string Id { get; set; }
+		public string SpeakerName { get; set; }
+		public string SpeakerId { get; set; }
+		public string QuoteText { get; set; }
+		public string ScribeName { get; set; }
+		public string ScribeId { get; set; }
+		public string DateTime { get; set; }
+		public string Timestamp { get; set; }
+		public string CategoryName { get; set; }
+		public string CategoryId { get; set; }
+		public string StreamTitle { get; set; }
+		public string StreamPlatform { get; set; }
+	}
+
+	//public static void Main(string[] args)
+	//{
+
+	//	// Write data to JSON file
+	//	QuoteEntry newQuote = new QuoteEntry
+	//	//{
+	//	//	Id = "Id",
+	//	//	SpeakerName = "Speaker Name",
+	//	//	SpeakerId = "Speaker ID",
+	//	//	QuoteText = "Quote Text",
+	//	//	ScribeName = "Scribe Name",
+	//	//	ScribeId = "Scribe ID",
+	//	//	DateTime = "Date Time",
+	//	//	Timestamp = "Timestamp",
+	//	//	CategoryName = "Category Name",
+	//	//	CategoryId = "Category ID",
+	//	//	StreamTitle = "Stream Title",
+	//	//	StreamPlatform = "Stream Platform"
+	//	//};
+	//	{
+	//		Id = "1",
+	//		SpeakerName = "John Doe",
+	//		SpeakerId = "JD123",
+	//		QuoteText = "This is a sample quote.",
+	//		ScribeName = "Jane Smith",
+	//		ScribeId = "JS456",
+	//		DateTime = DateTime.Now.ToString("o"), // ISO 8601 format
+	//		Timestamp = DateTime.Now.Ticks.ToString(),
+	//		CategoryName = "Inspiration",
+	//		CategoryId = "Cat1",
+	//		StreamTitle = "Inspiration Stream",
+	//		StreamPlatform = "Twitch"
+	//	};
+
+	//	AppendQuote(filePath, newQuote);
+
+	//	// Read and display all quotes
+	//	List<QuoteEntry> quotes = ReadQuotes(filePath);
+	//	foreach (var quote in quotes)
+	//	{
+	//		Console.WriteLine($"Quote: {quote.QuoteText} - Speaker: {quote.SpeakerName}");
+	//	}
+	//}
+
+	/// <summary>
+	/// Appends a new quote to a JSON file.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	/// <param name="newQuote">The new quote to append.</param>
+	public void AppendQuote(string filePath, QuoteEntry newQuote)
+	{
+		if (newQuote == null)
+		{
+			CPH.LogDebug("Quote Script :: AppendQuote() :: New quote is null");
+			return;
+		}
+
+		CPH.LogDebug("Quote Script :: AppendQuote() :: Reading quotes from file");
+		List<QuoteEntry> quotes = ReadQuotes(filePath);
+		if (quotes == null)
+		{
+			CPH.LogDebug("Quote Script :: AppendQuote() :: `quotes` is null");
+			return;
+		}
+
+		CPH.LogDebug("Quote Script :: AppendQuote() :: Adding quote to list");
+		quotes.Add(newQuote);
+
+		CPH.LogDebug("Quote Script :: AppendQuote() :: Writing quotes to file");
+		WriteQuotes(filePath, quotes);
+	}
+
+	/// <summary>
+	/// Reads quotes from a JSON file.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	/// <returns>A list of quote entries.</returns>
+	public static List<QuoteEntry> ReadQuotes(string filePath)
+	{
+		if (File.Exists(filePath))
+		{
+			string json = File.ReadAllText(filePath);
+			var quotes = JsonConvert.DeserializeObject<List<QuoteEntry>>(json);
+			if (quotes == null || quotes.Count == 0)
+			{
+				return new List<QuoteEntry>(); // Return an empty list if the file is empty
+			}
+			return quotes;
+		}
+		else
+		{
+			return new List<QuoteEntry>(); // Return an empty list if the file does not exist
+		}
+	}
+
+	/// <summary>
+	/// Writes quotes to a JSON file.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	/// <param name="quotes">The list of quotes to write.</param>
+	public static void WriteQuotes(string filePath, List<QuoteEntry> quotes)
+	{
+		string json = JsonConvert.SerializeObject(quotes, Formatting.Indented);
+		File.WriteAllText(filePath, json);
+	}
+
+	/// <summary>
+	/// Gets the latest quote (based on Id) from a list of quotes.
+	/// </summary>
+	/// <param name="quotes">The list of quotes.</param>
+	/// <returns>The latest quote entry, or null if the list is null or empty.</returns>
+	public static QuoteEntry GetLatestQuote(List<QuoteEntry> quotes)
+	{
+		if (quotes == null || quotes.Count == 0)
+		{
+			return null; // Return null if the list is null or empty
+		}
+		return quotes
+			.Select(q => new { Quote = q, Id = int.Parse(q.Id) }) // Convert Id to int for comparison
+			.OrderByDescending(q => q.Id) // Sort by Id in descending order
+			.Select(q => q.Quote) // Select the original QuoteEntry
+			.FirstOrDefault(); // Get the first (latest) entry or null if the list is empty
+	}
+
+	/// <summary>
+	/// Returns a dictionary of relevant arguments for the action.
+	/// </summary>
+	/// <returns>A dictionary of relevant arguments or null.</returns>
+	public Dictionary<string, string> GetActionArgs(
+		bool cmdArgs = false,
+		bool dbArg = false,
+		bool streamArgs = false,
+		bool inputArgs = false,
+		bool userArgs = false,
+		bool tUserArgs = false
+	)
+	{
+		var args = new Dictionary<string, string>();
+
+		// File path
+		if (dbArg)
+		{
+			CPH.TryGetArg("quoteDatabasePath", out string quoteDatabasePath);
+			args.Add("quoteDatabasePath", quoteDatabasePath);
+		}
+
+		// Broadcast info
+		if (streamArgs)
+		{
+			CPH.TryGetArg("broadcastUser", out string broadcastUser);
+			args.Add("broadcastUser", broadcastUser);
+			CPH.TryGetArg("broadcastUserId", out string broadcastUserId);
+			args.Add("broadcastUserId", broadcastUserId);
+			CPH.TryGetArg("broadcastUserName", out string broadcastUserName);
+			args.Add("broadcastUserName", broadcastUserName);
+			CPH.TryGetArg("twitchChannelCategoryId", out string twitchChannelCategoryId);
+			args.Add("twitchChannelCategoryId", twitchChannelCategoryId);
+			CPH.TryGetArg("twitchChannelCategoryName", out string twitchChannelCategoryName);
+			args.Add("twitchChannelCategoryName", twitchChannelCategoryName);
+			CPH.TryGetArg("twitchChannelTitle", out string twitchChannelTitle);
+			args.Add("twitchChannelTitle", twitchChannelTitle);
+		}
+
+		// Command
+		if (cmdArgs)
+		{
+			CPH.TryGetArg("command", out string command);
+			args.Add("command", command);
+			//CPH.TryGetArg("commandSource", out string commandSource);
+			//args.Add("commandSource", commandSource);
+			CPH.TryGetArg("input0", out string input0);
+			args.Add("input0", input0);
+		}
+
+		// Input
+		if (inputArgs)
+		{
+			CPH.TryGetArg("rawInput", out string rawInput);
+			args.Add("rawInput", rawInput);
+			CPH.TryGetArg("actionQueuedAt", out string actionQueuedAt);
+			args.Add("actionQueuedAt", actionQueuedAt);
+		}
+
+		// User info (redeemer)
+		if (userArgs)
+		{
+			CPH.TryGetArg("user", out string user);
+			args.Add("user", user);
+			CPH.TryGetArg("userName", out string userName);
+			args.Add("userName", userName);
+			CPH.TryGetArg("userId", out string userId);
+			args.Add("userId", userId);
+			CPH.TryGetArg("userType", out string userType);
+			args.Add("userType", userType);
+			CPH.TryGetArg("isModerator", out string isModerator);
+			args.Add("isModerator", isModerator);
+			CPH.TryGetArg("isVip", out string isVip);
+			args.Add("isVip", isVip);
+		}
+
+		// User info (target)
+		if (tUserArgs)
+		{
+			CPH.TryGetArg("targetUser", out string targetUser);
+			args.Add("targetUser", targetUser);
+			CPH.TryGetArg("targetUserName", out string targetUserName);
+			args.Add("targetUserName", targetUserName);
+			CPH.TryGetArg("targetUserId", out string targetUserId);
+			args.Add("targetUserId", targetUserId);
+			CPH.TryGetArg("targetUserPlatform", out string targetUserPlatform);
+			args.Add("targetUserPlatform", targetUserPlatform);
+			CPH.TryGetArg("targetIsFollowing", out string targetIsFollowing);
+			args.Add("targetIsFollowing", targetIsFollowing);
+			CPH.TryGetArg("targetLastActive", out string targetLastActive);
+			args.Add("targetLastActive", targetLastActive);
+		}
+
+		if (args.Count == 0)
+		{
+			return null;
+		}
+		return args;
+	}
+
+	/// <summary>
+	/// Adds a new quote to the quote database.
+	/// </summary>
+	public void QuoteAdd()
+	{
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Beginning");
+		CPH.SendMessage("Command Triggered: Quote (Add)", true, true);
+		var args = GetActionArgs(dbArg: true, userArgs: true, streamArgs: true, inputArgs: true, tUserArgs: true, cmdArgs: true);
+
+		//string quoteId;
+		//string targetUser;
+		//string targetUserId;
+		string newId;
+		string newSpeakerName;
+		string newSpeakerId;
+		string newQuoteText;
+		string newScribeName;
+		string newScribeId;
+		string newDateTime;
+		string newTimestamp;
+		string newCategoryName;
+		string newCategoryId;
+		string newStreamTitle;
+		string newStreamPlatform;
+
+		// Id
+		// read file and get last id
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Reading quotes from file");
+		var quotes = ReadQuotes(args["quoteDatabasePath"]);
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Getting latest quote id");
+		var latestQuote = GetLatestQuote(quotes);
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting quote id");
+		// if no last id, set id to 1
+		if (latestQuote == null || string.IsNullOrEmpty(latestQuote.Id))
+		{
+			newId = "1";
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: No existing quotes, set quote id to 1");
+		}
+		// set id to last id + 1
+		else
+		{
+			try
+			{
+				newId = (int.Parse(latestQuote.Id) + 1).ToString();
+				CPH.LogDebug("Quote Script :: QuoteAdd() :: Set quote id to " + newId);
+			}
+			catch
+			{
+				newId = "1";
+				CPH.LogDebug("Quote Script :: QuoteAdd() :: Exception caught, set quote id to 1");
+			}
+		}
+
+		// SpeakerName & SpeakerId & QuoteText
+		// if target user specified get target user name and id
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Speaker");
+		if (string.IsNullOrEmpty(args["targetUser"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'targetUser' does not exist");
+			if (string.IsNullOrEmpty(args["broadcastUser"]))
+			{
+				CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'broadcastUser' does not exist");
+				newSpeakerName = null;
+			}
+			else
+			{
+				newSpeakerName = args["broadcastUser"];
+			}
+			//newSpeakerName = null;
+		}
+		else
+		{
+			newSpeakerName = args["targetUser"];
+		}
+
+		if (string.IsNullOrEmpty(args["targetUserId"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'targetUserId' does not exist");
+			if (string.IsNullOrEmpty(args["broadcastUserId"]))
+			{
+				CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'broadcastUserId' does not exist");
+				newSpeakerId = null;
+			}
+			else
+			{
+				newSpeakerId = args["broadcastUserId"];
+			}
+			//newSpeakerId = null;
+		}
+		else
+		{
+			newSpeakerId = args["targetUserId"];
+		}
+
+		// if no target user specified, get broadcaster name and id
+		//CPH.TryGetArg("broadcastUser", out string broadcastUser);
+		//CPH.TryGetArg("broadcastUserId", out string broadcastUserId);
+		// get quote text from input
+		newQuoteText = null;
+
+		// ScribeName & ScribeId
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Scribe");
+		if (string.IsNullOrEmpty(args["user"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'user' does not exist");
+			newScribeName = null;
+		}
+		else
+		{
+			newScribeName = args["user"];
+		}
+
+		if (string.IsNullOrEmpty(args["userId"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'userId' does not exist");
+			newScribeId = null;
+		}
+		else
+		{
+			newScribeId = args["userId"];
+		}
+
+		// DateTime
+		CPH.LogDebug("Quote Script :: Setting DateTime");
+		//newDateTime = DateTime.Now.ToString("o"); // ISO 8601 format
+		if (string.IsNullOrEmpty(args["actionQueuedAt"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'actionQueuedAt' does not exist");
+			newDateTime = null;
+		}
+		else
+		{
+			newDateTime = args["actionQueuedAt"];
+		}
+
+		// Timestamp
+		// get vod
+		// get uptime
+		newTimestamp = null;
+
+		// CategoryName & CategoryId
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Category");
+		if (string.IsNullOrEmpty(args["twitchChannelCategoryName"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'game' does not exist");
+			newCategoryName = null;
+		}
+		else
+		{
+			newCategoryName = args["twitchChannelCategoryName"];
+		}
+
+		if (string.IsNullOrEmpty(args["twitchChannelCategoryId"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'gameId' does not exist");
+			newCategoryId = null;
+		}
+		else
+		{
+			newCategoryId = args["twitchChannelCategoryId"];
+		}
+
+		// StreamTitle
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Title");
+		if (string.IsNullOrEmpty(args["twitchChannelTitle"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'twitchChannelTitle' does not exist");
+			newStreamTitle = null;
+		}
+		else
+		{
+			newStreamTitle = args["twitchChannelTitle"];
+		}
+
+		// StreamPlatform
+		if (string.IsNullOrEmpty(args["userType"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'userType' does not exist");
+			newStreamPlatform = null;
+		}
+		else
+		{
+			newStreamPlatform = args["userType"];
+		}
+
+		var newQuote = new QuoteEntry
+		{
+			Id = newId,
+			SpeakerName = newSpeakerName,
+			SpeakerId = newSpeakerId,
+			QuoteText = newQuoteText,
+			ScribeName = newScribeName,
+			ScribeId = newScribeId,
+			DateTime = newDateTime,
+			Timestamp = newTimestamp,
+			CategoryName = newCategoryName,
+			CategoryId = newCategoryId,
+			StreamTitle = newStreamTitle,
+			StreamPlatform = newStreamPlatform
+		};
+
+		CPH.LogDebug("Quote Script :: QuoteAdd() :: Appending quote to file");
+		AppendQuote(args["quoteDatabasePath"], newQuote);
+	}
+
+	/// <summary>
+	/// Removes a quote from the quote database.
+	/// </summary>
+	public void QuoteDelete()
+	{
+		CPH.SendMessage("Command Triggered: Quote (Delete)", true, true);
+	}
+
+	/// <summary>
+	/// Edits a quote in the quote database.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	public void QuoteEdit()
+	{
+		CPH.SendMessage("Command Triggered: Quote (Edit)", true, true);
+	}
+
+	/// <summary>
+	/// Gets a quote from the quote database by Id.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	public void QuoteGetFromId()
+	{
+		CPH.SendMessage("Command Triggered: Quote (Get from Id)", true, true);
+	}
+
+	/// <summary>
+	/// Gets a random quote from the quote database.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	public void QuoteGetRandom()
+	{
+		CPH.SendMessage("Command Triggered: Quote (Get Random)", true, true);
+	}
+
+	/// <summary>
+	/// Gets a quote from the quote database by search term.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	public void QuoteGetFromSearchTerm()
+	{
+		CPH.SendMessage("Command Triggered: Quote (Get from Search Term)", true, true);
+	}
+
+	/// <summary>
+	/// Hides a quote from the quote database.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	public void QuoteHide()
+	{
+		CPH.SendMessage("Command Triggered: Quote (Hide)", true, true);
+	}
+
+	//public static void WriteJson(string filePath, QuoteEntry data)
+	//{
+	//	string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+	//	File.WriteAllText(filePath, json);
+	//}
+
+	//public static QuoteEntry ReadJson(string filePath)
+	//{
+	//	if (filePath.Exists(filePath))
+	//	{
+	//		string json = File.ReadAllText(filePath);
+	//		return JsonConvert.DeserializeObject<QuoteEntry>(json);
+	//	}
+	//	else
+	//	{
+	//		Console.WriteLine("File not found.");
+	//		return null;
+	//	}
+	//}
+
+}
