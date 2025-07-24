@@ -13,7 +13,6 @@ public class CPHInline
 		CPH.LogDebug("Quote Script :: Initialized");
 
 		// Get which command was used to trigger the script
-		//CPH.TryGetArg("command", out string command);
 		var cmdArgs = GetActionArgs(cmdArgs: true);
 		if (cmdArgs == null)
 		{
@@ -32,46 +31,21 @@ public class CPHInline
 		if (command.ToLower() == "!quote")
 		{
 			// If command was `!quote` check what the next input is
-			//CPH.TryGetArg("input0", out string input0);
 			if (string.IsNullOrEmpty(input0))
 			{
 				// If no next input, get a random quote
-				//CPH.RunActionById(actionIdQuoteGetRandom); // Get Random
 				QuoteGetRandom();
 			}
 			else if (Regex.IsMatch(input0, @"^[0-9]+$"))
 			{
 				// If the next input is a number, get the quote with that id
-				//CPH.RunActionById(actionIdQuoteGetIndex); // Get Index
 				QuoteGetFromId();
-				//QuoteGetFromId(filePath, input0);
 			}
 			else
 			{
 				switch (input0.ToLower())
 				{
-					//case "add":
-					//	//CPH.LogDebug("Quote Script :: Adding Quote");
-					//	//CPH.RunActionById(actionIdQuoteAdd); // Add
-					//	QuoteAdd(filePath);
-					//	break;
-					//case "delete":
-					//	//CPH.RunActionById(actionIdQuoteDelete); // Delete
-					//	QuoteDelete(filePath);
-					//	break;
-					//case "edit":
-					//	//CPH.RunActionById(actionIdQuoteEdit); // Edit
-					//	QuoteEdit(filePath);
-					//	break;
-					//case "hide":
-					//	//CPH.RunActionById(actionIdQuoteHide); // Hide
-					//	QuoteHide(filePath);
-					//	break;
-					//case "random":
-					//	//CPH.RunActionById(actionIdQuoteGetRandom); // Get Random
-					//	QuoteGetRandom(filePath);
-					//	break;
-					// If the next input is part of a specific command, cancel the script and let the other instance of the script handle it
+					// If the next input is part of a specific command, cancel the script and let the other triggered instance of the script handle it
 					case "add":
 					case "delete":
 					case "edit":
@@ -82,7 +56,6 @@ public class CPHInline
 						return true;
 					default:
 						// If the next input is not part of a specific command, get a quote with that search term
-						//CPH.RunActionById(actionIdQuoteGetSearch); // Get Search
 						QuoteGetFromSearchTerm();
 						break;
 				}
@@ -96,43 +69,43 @@ public class CPHInline
 				case "!addquote":
 				case "!quoteadd":
 				case "!quote add":
-					// If command was add quote, attempt to add the quote
+					// If command was 'add quote', attempt to add the quote
 					QuoteAdd();
 					break;
 				case "!delquote":
 				case "!quotedelete":
 				case "!quote delete":
-					// If command was delete quote, attempt to delete the quote
+					// If command was 'delete quote', attempt to delete the quote
 					QuoteDelete();
 					break;
 				case "!editquote":
 				case "!quoteedit":
 				case "!quote edit":
-					// If command was edit quote, attempt to edit the quote
+					// If command was 'edit quote', attempt to edit the quote
 					QuoteEdit();
 					break;
 				case "!getquote":
 				case "!quoteget":
 				case "!quote get":
-					// If command was get quote by id, attempt to get the quote
+					// If command was 'get quote by id', attempt to get the quote
 					QuoteGetFromId();
 					break;
 				case "!randquote":
 				case "!quoterandom":
 				case "!quote random":
-					// If command was get random quote, attempt to get a random quote
+					// If command was 'get random quote', attempt to get a random quote
 					QuoteGetRandom();
 					break;
 				case "!findquote":
 				case "!quotefind":
 				case "!quote find":
-					// If command was get quote by search term, attempt to get a quote
+					// If command was 'get quote by search term', attempt to get a quote
 					QuoteGetFromSearchTerm();
 					break;
 				case "!hidequote":
 				case "!quotehide":
 				case "!quote hide":
-					// If command was hide quote, attempt to hide the quote
+					// If command was 'hide quote', attempt to hide the quote
 					QuoteHide();
 					break;
 			}
@@ -164,49 +137,6 @@ public class CPHInline
 		public string StreamPlatform { get; set; }
 	}
 
-	//public static void Main(string[] args)
-	//{
-
-	//	// Write data to JSON file
-	//	QuoteEntry newQuote = new QuoteEntry
-	//	//{
-	//	//	Id = "Id",
-	//	//	SpeakerName = "Speaker Name",
-	//	//	SpeakerId = "Speaker ID",
-	//	//	QuoteText = "Quote Text",
-	//	//	ScribeName = "Scribe Name",
-	//	//	ScribeId = "Scribe ID",
-	//	//	DateTime = "Date Time",
-	//	//	Timestamp = "Timestamp",
-	//	//	CategoryName = "Category Name",
-	//	//	CategoryId = "Category ID",
-	//	//	StreamTitle = "Stream Title",
-	//	//	StreamPlatform = "Stream Platform"
-	//	//};
-	//	{
-	//		Id = "1",
-	//		SpeakerName = "John Doe",
-	//		SpeakerId = "JD123",
-	//		QuoteText = "This is a sample quote.",
-	//		ScribeName = "Jane Smith",
-	//		ScribeId = "JS456",
-	//		DateTime = DateTime.Now.ToString("o"), // ISO 8601 format
-	//		Timestamp = DateTime.Now.Ticks.ToString(),
-	//		CategoryName = "Inspiration",
-	//		CategoryId = "Cat1",
-	//		StreamTitle = "Inspiration Stream",
-	//		StreamPlatform = "Twitch"
-	//	};
-
-	//	AppendQuote(filePath, newQuote);
-
-	//	// Read and display all quotes
-	//	List<QuoteEntry> quotes = ReadQuotes(filePath);
-	//	foreach (var quote in quotes)
-	//	{
-	//		Console.WriteLine($"Quote: {quote.QuoteText} - Speaker: {quote.SpeakerName}");
-	//	}
-	//}
 
 	/// <summary>
 	/// Appends a new quote to a JSON file.
@@ -236,6 +166,7 @@ public class CPHInline
 		WriteQuotes(filePath, quotes);
 	}
 
+
 	/// <summary>
 	/// Reads quotes from a JSON file.
 	/// </summary>
@@ -259,6 +190,7 @@ public class CPHInline
 		}
 	}
 
+
 	/// <summary>
 	/// Writes quotes to a JSON file.
 	/// </summary>
@@ -269,6 +201,7 @@ public class CPHInline
 		string json = JsonConvert.SerializeObject(quotes, Formatting.Indented);
 		File.WriteAllText(filePath, json);
 	}
+
 
 	/// <summary>
 	/// Gets the latest quote (based on Id) from a list of quotes.
@@ -288,6 +221,7 @@ public class CPHInline
 			.FirstOrDefault(); // Get the first (latest) entry or null if the list is empty
 	}
 
+
 	/// <summary>
 	/// Returns a dictionary of relevant arguments for the action.
 	/// </summary>
@@ -295,10 +229,10 @@ public class CPHInline
 	public Dictionary<string, string> GetActionArgs(
 		bool cmdArgs = false,
 		bool dbArg = false,
-		bool streamArgs = false,
 		bool inputArgs = false,
-		bool userArgs = false,
-		bool tUserArgs = false
+		bool streamArgs = false,
+		bool tUserArgs = false,
+		bool userArgs = false
 	)
 	{
 		var args = new Dictionary<string, string>();
@@ -388,18 +322,17 @@ public class CPHInline
 		return args;
 	}
 
+
 	/// <summary>
 	/// Adds a new quote to the quote database.
 	/// </summary>
 	public void QuoteAdd()
 	{
 		CPH.LogDebug("Quote Script :: QuoteAdd() :: Beginning");
-		CPH.SendMessage("Command Triggered: Quote (Add)", true, true);
-		var args = GetActionArgs(dbArg: true, userArgs: true, streamArgs: true, inputArgs: true, tUserArgs: true, cmdArgs: true);
 
-		//string quoteId;
-		//string targetUser;
-		//string targetUserId;
+		CPH.SendMessage("Command Triggered: Quote (Add)", true, true);
+
+		var args = GetActionArgs(cmdArgs: true, dbArg: true, inputArgs: true, streamArgs: true, tUserArgs: true, userArgs: true);
 		string newId;
 		string newSpeakerName;
 		string newSpeakerId;
@@ -443,6 +376,7 @@ public class CPHInline
 
 		// SpeakerName & SpeakerId & QuoteText
 		// if target user specified get target user name and id
+		// if no target user specified, get broadcaster name and id
 		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Speaker");
 		if (string.IsNullOrEmpty(args["targetUser"]))
 		{
@@ -456,7 +390,6 @@ public class CPHInline
 			{
 				newSpeakerName = args["broadcastUser"];
 			}
-			//newSpeakerName = null;
 		}
 		else
 		{
@@ -475,16 +408,12 @@ public class CPHInline
 			{
 				newSpeakerId = args["broadcastUserId"];
 			}
-			//newSpeakerId = null;
 		}
 		else
 		{
 			newSpeakerId = args["targetUserId"];
 		}
 
-		// if no target user specified, get broadcaster name and id
-		//CPH.TryGetArg("broadcastUser", out string broadcastUser);
-		//CPH.TryGetArg("broadcastUserId", out string broadcastUserId);
 		// get quote text from input
 		newQuoteText = null;
 
@@ -593,6 +522,7 @@ public class CPHInline
 		AppendQuote(args["quoteDatabasePath"], newQuote);
 	}
 
+
 	/// <summary>
 	/// Removes a quote from the quote database.
 	/// </summary>
@@ -600,6 +530,7 @@ public class CPHInline
 	{
 		CPH.SendMessage("Command Triggered: Quote (Delete)", true, true);
 	}
+
 
 	/// <summary>
 	/// Edits a quote in the quote database.
@@ -610,6 +541,7 @@ public class CPHInline
 		CPH.SendMessage("Command Triggered: Quote (Edit)", true, true);
 	}
 
+
 	/// <summary>
 	/// Gets a quote from the quote database by Id.
 	/// </summary>
@@ -618,6 +550,7 @@ public class CPHInline
 	{
 		CPH.SendMessage("Command Triggered: Quote (Get from Id)", true, true);
 	}
+
 
 	/// <summary>
 	/// Gets a random quote from the quote database.
@@ -628,6 +561,7 @@ public class CPHInline
 		CPH.SendMessage("Command Triggered: Quote (Get Random)", true, true);
 	}
 
+
 	/// <summary>
 	/// Gets a quote from the quote database by search term.
 	/// </summary>
@@ -637,6 +571,7 @@ public class CPHInline
 		CPH.SendMessage("Command Triggered: Quote (Get from Search Term)", true, true);
 	}
 
+
 	/// <summary>
 	/// Hides a quote from the quote database.
 	/// </summary>
@@ -645,25 +580,5 @@ public class CPHInline
 	{
 		CPH.SendMessage("Command Triggered: Quote (Hide)", true, true);
 	}
-
-	//public static void WriteJson(string filePath, QuoteEntry data)
-	//{
-	//	string json = JsonConvert.SerializeObject(data, Formatting.Indented);
-	//	File.WriteAllText(filePath, json);
-	//}
-
-	//public static QuoteEntry ReadJson(string filePath)
-	//{
-	//	if (filePath.Exists(filePath))
-	//	{
-	//		string json = File.ReadAllText(filePath);
-	//		return JsonConvert.DeserializeObject<QuoteEntry>(json);
-	//	}
-	//	else
-	//	{
-	//		Console.WriteLine("File not found.");
-	//		return null;
-	//	}
-	//}
 
 }
