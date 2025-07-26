@@ -16,6 +16,7 @@ public class CPHInline
 		var cmdArgs = GetActionArgs(cmdArgs: true);
 		if (cmdArgs == null)
 		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not get command arguments.");
 			return true;
 		}
 		string command = cmdArgs["command"];
@@ -24,6 +25,7 @@ public class CPHInline
 		// If no command was found, cancel the script
 		if (string.IsNullOrEmpty(command))
 		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not get command arguments.");
 			return true;
 		}
 
@@ -36,11 +38,11 @@ public class CPHInline
 				// If no next input, get a random quote
 				QuoteGetRandom();
 			}
-			else if (Regex.IsMatch(input0, @"^[0-9]+$"))
-			{
-				// If the next input is a number, get the quote with that id
-				QuoteGetFromId();
-			}
+			//else if (Regex.IsMatch(input0, @"^[0-9]+$"))
+			//{
+			//	// If the next input is a number, get the quote with that id
+			//	QuoteGetId();
+			//}
 			else
 			{
 				switch (input0.ToLower())
@@ -49,14 +51,16 @@ public class CPHInline
 					case "add":
 					case "delete":
 					case "edit":
-					case "find":
+					//case "find":
 					case "get":
 					case "hide":
 					case "random":
+					case "search":
+						CPH.LogDebug("Quote Script :: Result :: Cancelled. Duplicate script instance detected.");
 						return true;
 					default:
 						// If the next input is not part of a specific command, get a quote with that search term
-						QuoteGetFromSearchTerm();
+						QuoteGetSearch();
 						break;
 				}
 			}
@@ -87,20 +91,17 @@ public class CPHInline
 				case "!getquote":
 				case "!quoteget":
 				case "!quote get":
-					// If command was 'get quote by id', attempt to get the quote
-					QuoteGetFromId();
+				case "!searchquote":
+				case "!quotesearch":
+				case "!quote search":
+					// If command was 'get quote by search term', attempt to get a quote
+					QuoteGetSearch();
 					break;
 				case "!randquote":
 				case "!quoterandom":
 				case "!quote random":
 					// If command was 'get random quote', attempt to get a random quote
 					QuoteGetRandom();
-					break;
-				case "!findquote":
-				case "!quotefind":
-				case "!quote find":
-					// If command was 'get quote by search term', attempt to get a quote
-					QuoteGetFromSearchTerm();
 					break;
 				case "!hidequote":
 				case "!quotehide":
@@ -111,6 +112,7 @@ public class CPHInline
 			}
 		}
 
+		CPH.LogDebug("Quote Script :: Result :: Success");
 		return true;
 	}
 
@@ -147,22 +149,22 @@ public class CPHInline
 	{
 		if (newQuote == null)
 		{
-			CPH.LogDebug("Quote Script :: AppendQuote() :: New quote is null");
+			//CPH.LogDebug("Quote Script :: AppendQuote() :: New quote is null");
 			return;
 		}
 
-		CPH.LogDebug("Quote Script :: AppendQuote() :: Reading quotes from file");
+		//CPH.LogDebug("Quote Script :: AppendQuote() :: Reading quotes from file");
 		List<QuoteEntry> quotes = ReadQuotes(filePath);
 		if (quotes == null)
 		{
-			CPH.LogDebug("Quote Script :: AppendQuote() :: `quotes` is null");
+			//CPH.LogDebug("Quote Script :: AppendQuote() :: `quotes` is null");
 			return;
 		}
 
-		CPH.LogDebug("Quote Script :: AppendQuote() :: Adding quote to list");
+		//CPH.LogDebug("Quote Script :: AppendQuote() :: Adding quote to list");
 		quotes.Add(newQuote);
 
-		CPH.LogDebug("Quote Script :: AppendQuote() :: Writing quotes to file");
+		//CPH.LogDebug("Quote Script :: AppendQuote() :: Writing quotes to file");
 		WriteQuotes(filePath, quotes);
 	}
 
@@ -231,10 +233,10 @@ public class CPHInline
 		bool dbArg = false,
 		bool inputArgs = false,
 		bool streamArgs = false,
-		bool tUserArgs = false,
 		bool userArgs = false
 	)
 	{
+		//CPH.LogDebug("Quote Script :: GetActionArgs() :: Getting arguments");
 		var args = new Dictionary<string, string>();
 
 		// File path
@@ -245,11 +247,11 @@ public class CPHInline
 		}
 
 		// Broadcast info
+		CPH.TryGetArg("broadcastUser", out string broadcastUser);
+		CPH.TryGetArg("broadcastUserId", out string broadcastUserId);
 		if (streamArgs)
 		{
-			CPH.TryGetArg("broadcastUser", out string broadcastUser);
 			args.Add("broadcastUser", broadcastUser);
-			CPH.TryGetArg("broadcastUserId", out string broadcastUserId);
 			args.Add("broadcastUserId", broadcastUserId);
 			CPH.TryGetArg("broadcastUserName", out string broadcastUserName);
 			args.Add("broadcastUserName", broadcastUserName);
@@ -259,26 +261,6 @@ public class CPHInline
 			args.Add("twitchChannelCategoryName", twitchChannelCategoryName);
 			CPH.TryGetArg("twitchChannelTitle", out string twitchChannelTitle);
 			args.Add("twitchChannelTitle", twitchChannelTitle);
-		}
-
-		// Command
-		if (cmdArgs)
-		{
-			CPH.TryGetArg("command", out string command);
-			args.Add("command", command);
-			//CPH.TryGetArg("commandSource", out string commandSource);
-			//args.Add("commandSource", commandSource);
-			CPH.TryGetArg("input0", out string input0);
-			args.Add("input0", input0);
-		}
-
-		// Input
-		if (inputArgs)
-		{
-			CPH.TryGetArg("rawInput", out string rawInput);
-			args.Add("rawInput", rawInput);
-			CPH.TryGetArg("actionQueuedAt", out string actionQueuedAt);
-			args.Add("actionQueuedAt", actionQueuedAt);
 		}
 
 		// User info (redeemer)
@@ -298,9 +280,24 @@ public class CPHInline
 			args.Add("isVip", isVip);
 		}
 
-		// User info (target)
-		if (tUserArgs)
+		// Command
+		CPH.TryGetArg("command", out string command);
+		if (cmdArgs)
 		{
+			args.Add("command", command);
+			CPH.TryGetArg("input0", out string input0);
+			args.Add("input0", input0);
+		}
+
+		// Input
+		if (inputArgs)
+		{
+			//CPH.LogDebug("Quote Script :: GetActionArgs() :: Handling input arguments");
+			CPH.TryGetArg("rawInput", out string rawInput);
+			args.Add("rawInput", rawInput);
+			CPH.TryGetArg("actionQueuedAt", out string actionQueuedAt);
+			args.Add("actionQueuedAt", actionQueuedAt);
+
 			CPH.TryGetArg("targetUser", out string targetUser);
 			args.Add("targetUser", targetUser);
 			CPH.TryGetArg("targetUserName", out string targetUserName);
@@ -310,9 +307,96 @@ public class CPHInline
 			CPH.TryGetArg("targetUserPlatform", out string targetUserPlatform);
 			args.Add("targetUserPlatform", targetUserPlatform);
 			CPH.TryGetArg("targetIsFollowing", out string targetIsFollowing);
-			args.Add("targetIsFollowing", targetIsFollowing);
+			//args.Add("targetIsFollowing", targetIsFollowing);
+			CPH.TryGetArg("targetIsModerator", out string targetIsModerator);
+			//args.Add("targetIsModerator", targetIsModerator);
 			CPH.TryGetArg("targetLastActive", out string targetLastActive);
-			args.Add("targetLastActive", targetLastActive);
+			//args.Add("targetLastActive", targetLastActive);
+
+			// Get full input message
+			string rawInputMessage = string.Join(" ", command, rawInput);
+			args.Add("rawInputMessage", rawInputMessage);
+
+			// Split input into target and content
+			string inputContent = null;
+			string inputTarget = null;
+			string inputTargetId = null;
+			string inputTargetOperator = null;
+			if (!string.IsNullOrWhiteSpace(rawInput))
+			{
+				string[] inputSplit = rawInput.Split(' ');
+				// Check if input is 2 or more words
+				if (inputSplit.Length > 1)
+				{
+					inputTarget = inputSplit[0];
+					// Check if there's a mention (@) or character (^) operator, remove it, and set the operator
+					if (inputTarget[0] == '^')
+					{
+						// Target is explicitly a character, not a user
+						inputTargetOperator = "^";
+						inputTarget = inputTarget.Substring(1);
+						inputContent = string.Join(" ", inputSplit.Skip(1));
+					}
+					else if (inputTarget[0] == '@')
+					{
+						// Target is explicitly the mentioned user
+						inputTargetOperator = "@";
+						inputTarget = targetUser;
+						inputTargetId = targetUserId;
+						inputContent = string.Join(" ", inputSplit.Skip(1));
+					}
+					else
+					{
+						// Attempt to determine if target is a user or not
+						// Check if the input target matches any of the broadcaster's aliases/nicknames
+						CPH.TryGetArg("twitchBroadcasterAliases", out string twitchBroadcasterAliases);
+						string[] aliases = twitchBroadcasterAliases.Split(',');
+						if (Array.Exists(aliases, alias => string.Equals(alias, inputTarget, StringComparison.OrdinalIgnoreCase)) && !string.IsNullOrEmpty(broadcastUser))
+						{
+							// Target is most likely the broadcaster
+							inputTarget = broadcastUser;
+							inputTargetId = broadcastUserId;
+							inputContent = string.Join(" ", inputSplit.Skip(1));
+						}
+						// Check if the input target matches the user found by Streamer.bot
+						else if (inputTarget.ToLower() == targetUser.ToLower() || inputTarget.ToLower() == targetUserName.ToLower())
+						{
+							// Check if the matched user is following or has ever been active in the stream
+							string defaultLastActive = "1/1/0001 12:00:00 AM";
+							if (targetIsFollowing == "True" || targetIsModerator == "True" || targetLastActive != defaultLastActive && !string.IsNullOrEmpty(targetLastActive))
+							{
+								// Target is most likely the matched user
+								inputTarget = targetUser;
+								inputTargetId = targetUserId;
+								inputContent = string.Join(" ", inputSplit.Skip(1));
+							}
+							else
+							{
+								// Target word is most likely not a user, and instead part of the content
+								inputTarget = null;
+								inputContent = string.Join(" ", inputSplit);
+							}
+						}
+						else
+						{
+							// Target word is most likely not a user, and instead part of the content
+							inputTarget = null;
+							inputContent = string.Join(" ", inputSplit);
+						}
+					}
+				}
+				else
+				{
+					// Target word is most likely not a user, and instead part of the content
+					inputTarget = null;
+					inputContent = rawInput;
+				}
+			}
+			args.Add("inputTarget", inputTarget);
+			args.Add("inputTargetId", inputTargetId);
+			args.Add("inputTargetOperator", inputTargetOperator);
+			args.Add("inputContent", inputContent);
+
 		}
 
 		if (args.Count == 0)
@@ -328,11 +412,11 @@ public class CPHInline
 	/// </summary>
 	public void QuoteAdd()
 	{
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Beginning");
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Beginning");
 
 		CPH.SendMessage("Command Triggered: Quote (Add)", true, true);
 
-		var args = GetActionArgs(cmdArgs: true, dbArg: true, inputArgs: true, streamArgs: true, tUserArgs: true, userArgs: true);
+		var args = GetActionArgs(dbArg: true, inputArgs: true, streamArgs: true, userArgs: true);
 		string newId;
 		string newSpeakerName;
 		string newSpeakerId;
@@ -348,11 +432,11 @@ public class CPHInline
 
 		// Id
 		// read file and get last id
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Reading quotes from file");
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Reading quotes from file");
 		var quotes = ReadQuotes(args["quoteDatabasePath"]);
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Getting latest quote id");
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Getting latest quote id");
 		var latestQuote = GetLatestQuote(quotes);
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting quote id");
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting quote id");
 		// if no last id, set id to 1
 		if (latestQuote == null || string.IsNullOrEmpty(latestQuote.Id))
 		{
@@ -365,7 +449,7 @@ public class CPHInline
 			try
 			{
 				newId = (int.Parse(latestQuote.Id) + 1).ToString();
-				CPH.LogDebug("Quote Script :: QuoteAdd() :: Set quote id to " + newId);
+				//CPH.LogDebug("Quote Script :: QuoteAdd() :: Set quote id to " + newId);
 			}
 			catch
 			{
@@ -374,51 +458,17 @@ public class CPHInline
 			}
 		}
 
-		// SpeakerName & SpeakerId & QuoteText
-		// if target user specified get target user name and id
-		// if no target user specified, get broadcaster name and id
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Speaker");
-		if (string.IsNullOrEmpty(args["targetUser"]))
-		{
-			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'targetUser' does not exist");
-			if (string.IsNullOrEmpty(args["broadcastUser"]))
-			{
-				CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'broadcastUser' does not exist");
-				newSpeakerName = null;
-			}
-			else
-			{
-				newSpeakerName = args["broadcastUser"];
-			}
-		}
-		else
-		{
-			newSpeakerName = args["targetUser"];
-		}
+		// SpeakerName & SpeakerId
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Speaker");
+		newSpeakerName = args["inputTarget"];
+		newSpeakerId = args["inputTargetId"];
 
-		if (string.IsNullOrEmpty(args["targetUserId"]))
-		{
-			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'targetUserId' does not exist");
-			if (string.IsNullOrEmpty(args["broadcastUserId"]))
-			{
-				CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'broadcastUserId' does not exist");
-				newSpeakerId = null;
-			}
-			else
-			{
-				newSpeakerId = args["broadcastUserId"];
-			}
-		}
-		else
-		{
-			newSpeakerId = args["targetUserId"];
-		}
-
-		// get quote text from input
-		newQuoteText = null;
+		// QuoteText
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Quote Text");
+		newQuoteText = args["inputContent"];
 
 		// ScribeName & ScribeId
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Scribe");
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Scribe");
 		if (string.IsNullOrEmpty(args["user"]))
 		{
 			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'user' does not exist");
@@ -440,7 +490,7 @@ public class CPHInline
 		}
 
 		// DateTime
-		CPH.LogDebug("Quote Script :: Setting DateTime");
+		//CPH.LogDebug("Quote Script :: Setting DateTime");
 		//newDateTime = DateTime.Now.ToString("o"); // ISO 8601 format
 		if (string.IsNullOrEmpty(args["actionQueuedAt"]))
 		{
@@ -458,7 +508,7 @@ public class CPHInline
 		newTimestamp = null;
 
 		// CategoryName & CategoryId
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Category");
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Category");
 		if (string.IsNullOrEmpty(args["twitchChannelCategoryName"]))
 		{
 			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'game' does not exist");
@@ -480,7 +530,7 @@ public class CPHInline
 		}
 
 		// StreamTitle
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Title");
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Title");
 		if (string.IsNullOrEmpty(args["twitchChannelTitle"]))
 		{
 			CPH.LogDebug("Quote Script :: QuoteAdd() :: arg 'twitchChannelTitle' does not exist");
@@ -518,7 +568,7 @@ public class CPHInline
 			StreamPlatform = newStreamPlatform
 		};
 
-		CPH.LogDebug("Quote Script :: QuoteAdd() :: Appending quote to file");
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Appending quote to file");
 		AppendQuote(args["quoteDatabasePath"], newQuote);
 	}
 
@@ -542,14 +592,14 @@ public class CPHInline
 	}
 
 
-	/// <summary>
-	/// Gets a quote from the quote database by Id.
-	/// </summary>
-	/// <param name="filePath">The path to the JSON file.</param>
-	public void QuoteGetFromId()
-	{
-		CPH.SendMessage("Command Triggered: Quote (Get from Id)", true, true);
-	}
+	///// <summary>
+	///// Gets a quote from the quote database by Id.
+	///// </summary>
+	///// <param name="filePath">The path to the JSON file.</param>
+	//public void QuoteGetId()
+	//{
+	//	CPH.SendMessage("Command Triggered: Quote (Get from Id)", true, true);
+	//}
 
 
 	/// <summary>
@@ -566,7 +616,7 @@ public class CPHInline
 	/// Gets a quote from the quote database by search term.
 	/// </summary>
 	/// <param name="filePath">The path to the JSON file.</param>
-	public void QuoteGetFromSearchTerm()
+	public void QuoteGetSearch()
 	{
 		CPH.SendMessage("Command Triggered: Quote (Get from Search Term)", true, true);
 	}
