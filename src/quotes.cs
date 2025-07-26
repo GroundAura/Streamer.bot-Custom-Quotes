@@ -126,6 +126,7 @@ public class CPHInline
 	public class QuoteEntry
 	{
 		public string Id { get; set; }
+		public string RawInputMessage { get; set; }
 		public string SpeakerName { get; set; }
 		public string SpeakerId { get; set; }
 		public string QuoteText { get; set; }
@@ -278,6 +279,8 @@ public class CPHInline
 			args.Add("isModerator", isModerator);
 			CPH.TryGetArg("isVip", out string isVip);
 			args.Add("isVip", isVip);
+			CPH.TryGetArg("msgId", out string msgId);
+			args.Add("msgId", msgId);
 		}
 
 		// Command
@@ -359,11 +362,11 @@ public class CPHInline
 							inputContent = string.Join(" ", inputSplit.Skip(1));
 						}
 						// Check if the input target matches the user found by Streamer.bot
-						else if (inputTarget.ToLower() == targetUser.ToLower() || inputTarget.ToLower() == targetUserName.ToLower())
+						else if ( (!string.IsNullOrEmpty(targetUser) && inputTarget.ToLower() == targetUser.ToLower()) || (!string.IsNullOrEmpty(targetUserName) && inputTarget.ToLower() == targetUserName.ToLower()) )
 						{
 							// Check if the matched user is following or has ever been active in the stream
 							string defaultLastActive = "1/1/0001 12:00:00 AM";
-							if (targetIsFollowing == "True" || targetIsModerator == "True" || targetLastActive != defaultLastActive && !string.IsNullOrEmpty(targetLastActive))
+							if (targetIsFollowing == "True" || targetIsModerator == "True" || (targetLastActive != defaultLastActive && !string.IsNullOrEmpty(targetLastActive)) )
 							{
 								// Target is most likely the matched user
 								inputTarget = targetUser;
@@ -414,10 +417,23 @@ public class CPHInline
 	{
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Beginning");
 
-		CPH.SendMessage("Command Triggered: Quote (Add)", true, true);
-
 		var args = GetActionArgs(dbArg: true, inputArgs: true, streamArgs: true, userArgs: true);
+
+		if (args == null || args.Count == 0)
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: Result :: Failed. Could not get arguments.");
+			return;
+		}
+
+		if (args["isModerator"] != "True" && args["isVip"] != "True")
+		{
+			CPH.TwitchReplyToMessage("Sorry, only Moderators and VIPs can add quotes.", args["msgId"], true, true);
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: Result :: Cancelled. User does not have the required permissions.");
+			return;
+		}
+
 		string newId;
+		string newRawInputMessage;
 		string newSpeakerName;
 		string newSpeakerId;
 		string newQuoteText;
@@ -433,6 +449,11 @@ public class CPHInline
 		// Id
 		// read file and get last id
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Reading quotes from file");
+		if (string.IsNullOrEmpty(args["quoteDatabasePath"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteAdd() :: Result :: Failed. Could not get quote database path.");
+			return;
+		}
 		var quotes = ReadQuotes(args["quoteDatabasePath"]);
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Getting latest quote id");
 		var latestQuote = GetLatestQuote(quotes);
@@ -457,6 +478,10 @@ public class CPHInline
 				CPH.LogDebug("Quote Script :: QuoteAdd() :: Exception caught, set quote id to 1");
 			}
 		}
+
+		// RawInputMessage
+		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting RawInputMessage");
+		newRawInputMessage = args["rawInputMessage"];
 
 		// SpeakerName & SpeakerId
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Speaker");
@@ -555,6 +580,7 @@ public class CPHInline
 		var newQuote = new QuoteEntry
 		{
 			Id = newId,
+			RawInputMessage = newRawInputMessage,
 			SpeakerName = newSpeakerName,
 			SpeakerId = newSpeakerId,
 			QuoteText = newQuoteText,
@@ -570,6 +596,16 @@ public class CPHInline
 
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Appending quote to file");
 		AppendQuote(args["quoteDatabasePath"], newQuote);
+
+		string speakerOperator = "@";
+		if (args["inputTargetOperator"] == "^")
+		{
+			speakerOperator = "";
+		}
+
+		//CPH.SendMessage("Command Triggered: Quote (Add)", true, true);
+		CPH.TwitchReplyToMessage($"/me Added Quote #{newId}: \" {newQuoteText} \" - {speakerOperator}{newSpeakerName}", args["msgId"], true, true);
+		//CPH.TwitchReplyToMessage($"Quote #{newId} added: \" {newQuoteText} \" - @{newSpeakerName} (during \"{newCategoryName}\" at {newDateTime})", args["msgId"], true, true);
 	}
 
 
