@@ -147,147 +147,6 @@ public class CPHInline
 	//////////////////////
 
 	/// <summary>
-	/// Represents a quote entry and its properties.
-	/// </summary>
-	public class QuoteEntry
-	{
-		public string Id { get; set; }
-		public string RawInputMessage { get; set; }
-		public string SpeakerName { get; set; }
-		public string SpeakerId { get; set; }
-		public string QuoteText { get; set; }
-		public string ScribeName { get; set; }
-		public string ScribeId { get; set; }
-		public string DateTime { get; set; }
-		public string Timestamp { get; set; }
-		public string CategoryName { get; set; }
-		public string CategoryId { get; set; }
-		public string StreamTitle { get; set; }
-		public string StreamPlatform { get; set; }
-	}
-
-
-	/// <summary>
-	/// Appends a new quote to a JSON file.
-	/// </summary>
-	/// <param name="filePath">The path to the JSON file.</param>
-	/// <param name="newQuote">The new quote to append.</param>
-	public void AppendQuote(string filePath, QuoteEntry newQuote)
-	{
-		if (newQuote == null)
-		{
-			//CPH.LogDebug("Quote Script :: AppendQuote() :: New quote is null");
-			return;
-		}
-
-		//CPH.LogDebug("Quote Script :: AppendQuote() :: Reading quotes from file");
-		List<QuoteEntry> quotes = ReadQuotes();
-		if (quotes == null)
-		{
-			//CPH.LogDebug("Quote Script :: AppendQuote() :: `quotes` is null");
-			return;
-		}
-
-		//CPH.LogDebug("Quote Script :: AppendQuote() :: Adding quote to list");
-		quotes.Add(newQuote);
-
-		//CPH.LogDebug("Quote Script :: AppendQuote() :: Writing quotes to file");
-		WriteQuotes(filePath, quotes);
-	}
-
-
-	/// <summary>
-	/// Reads quotes from a JSON file.
-	/// </summary>
-	/// <returns>A list of quote entries, or null if the process fails.</returns>
-	public List<QuoteEntry> ReadQuotes()
-	{
-		// Get the database path
-		var args = GetActionArgs(dbArg: true);
-		if (args == null || args.Count == 0)
-		{
-			CPH.LogDebug("Quote Script :: Result :: Failed. Could not get quote database path.");
-			return null;
-		}
-		string filePath = args["quoteDatabasePath"];
-		if (string.IsNullOrEmpty(args["quoteDatabasePath"]))
-		{
-			CPH.LogDebug("Quote Script :: Result :: Failed. Could not get quote database path.");
-			return null;
-		}
-		// Attempt to create the file if it does not exist
-		if (!File.Exists(filePath))
-		{
-			var newList = new List<QuoteEntry>();
-			bool success = WriteQuotes(filePath, newList);
-			if (!success)
-			{
-				CPH.LogDebug("Quote Script :: Result :: Failed. Could not create quote database file.");
-				return null;
-			}
-		}
-		// Read the file and return the quotes
-		if (File.Exists(filePath))
-		{
-			string json = File.ReadAllText(filePath);
-			var quotes = JsonConvert.DeserializeObject<List<QuoteEntry>>(json);
-			if (quotes == null || quotes.Count == 0)
-			{
-				return new List<QuoteEntry>(); // Return an empty list if the file is empty
-			}
-			return quotes;
-		}
-		else
-		{
-			CPH.LogDebug("Quote Script :: Result :: Failed. Could not read quote database file.");
-			return null;
-			//return new List<QuoteEntry>(); // Return an empty list if the file does not exist
-		}
-	}
-
-
-	/// <summary>
-	/// Writes quotes to a JSON file.
-	/// </summary>
-	/// <param name="filePath">The path to the JSON file.</param>
-	/// <param name="quotes">The list of quotes to write.</param>
-	/// <returns>True if successful, false otherwise.</returns>
-	public bool WriteQuotes(string filePath, List<QuoteEntry> quotes)
-	{
-		string json = JsonConvert.SerializeObject(quotes, Formatting.Indented);
-		try
-		{
-			File.WriteAllText(filePath, json);
-			return true;
-		}
-		catch
-		{
-			CPH.LogDebug("Quote Script :: Result :: Failed. Could not write to quote database file.");
-			return false;
-		}
-	}
-
-
-	/// <summary>
-	/// Gets the latest quote (based on Id) from a list of quotes.
-	/// </summary>
-	/// <param name="quotes">The list of quotes.</param>
-	/// <returns>The latest quote entry, or null if the list is null or empty.</returns>
-	public static QuoteEntry GetLatestQuote(List<QuoteEntry> quotes)
-	{
-		if (quotes == null || quotes.Count == 0)
-		{
-			return null; // Return null if the list is null or empty
-		}
-		return quotes
-			.Select(q => new { Quote = q, Id = int.Parse(q.Id) }) // Convert Id to int for comparison
-			.OrderByDescending(q => q.Id) // Sort by Id in descending order
-			.Select(q => q.Quote) // Select the original QuoteEntry
-			.FirstOrDefault(); // Get the first (latest) entry or null if the list is empty
-	}
-
-
-	/// <summary>
 	/// Returns a dictionary of relevant arguments for the action.
 	/// </summary>
 	/// <returns>A dictionary of relevant arguments or null.</returns>
@@ -471,6 +330,146 @@ public class CPHInline
 		return args;
 	}
 
+	/// <summary>
+	/// Represents a quote entry and its properties.
+	/// </summary>
+	public class QuoteEntry
+	{
+		public string Id { get; set; }
+		public string RawInputMessage { get; set; }
+		public string SpeakerName { get; set; }
+		public string SpeakerId { get; set; }
+		public string QuoteText { get; set; }
+		public string ScribeName { get; set; }
+		public string ScribeId { get; set; }
+		public string DateTime { get; set; }
+		public string Timestamp { get; set; }
+		public string CategoryName { get; set; }
+		public string CategoryId { get; set; }
+		public string StreamTitle { get; set; }
+		public string StreamPlatform { get; set; }
+	}
+
+
+	/// <summary>
+	/// Appends a new quote to a JSON file.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	/// <param name="newQuote">The new quote to append.</param>
+	public void AppendQuote(string filePath, QuoteEntry newQuote)
+	{
+		if (newQuote == null)
+		{
+			//CPH.LogDebug("Quote Script :: AppendQuote() :: New quote is null");
+			return;
+		}
+
+		//CPH.LogDebug("Quote Script :: AppendQuote() :: Reading quotes from file");
+		List<QuoteEntry> quotes = ReadQuotes();
+		if (quotes == null)
+		{
+			//CPH.LogDebug("Quote Script :: AppendQuote() :: `quotes` is null");
+			return;
+		}
+
+		//CPH.LogDebug("Quote Script :: AppendQuote() :: Adding quote to list");
+		quotes.Add(newQuote);
+
+		//CPH.LogDebug("Quote Script :: AppendQuote() :: Writing quotes to file");
+		WriteQuotes(filePath, quotes);
+	}
+
+
+	/// <summary>
+	/// Reads quotes from a JSON file.
+	/// </summary>
+	/// <returns>A list of quote entries, or null if the process fails.</returns>
+	public List<QuoteEntry> ReadQuotes()
+	{
+		// Get the database path
+		var args = GetActionArgs(dbArg: true);
+		if (args == null || args.Count == 0)
+		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not get quote database path.");
+			return null;
+		}
+		string filePath = args["quoteDatabasePath"];
+		if (string.IsNullOrEmpty(args["quoteDatabasePath"]))
+		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not get quote database path.");
+			return null;
+		}
+		// Attempt to create the file if it does not exist
+		if (!File.Exists(filePath))
+		{
+			var newList = new List<QuoteEntry>();
+			bool success = WriteQuotes(filePath, newList);
+			if (!success)
+			{
+				CPH.LogDebug("Quote Script :: Result :: Failed. Could not create quote database file.");
+				return null;
+			}
+		}
+		// Read the file and return the quotes
+		if (File.Exists(filePath))
+		{
+			string json = File.ReadAllText(filePath);
+			var quotes = JsonConvert.DeserializeObject<List<QuoteEntry>>(json);
+			if (quotes == null || quotes.Count == 0)
+			{
+				return new List<QuoteEntry>(); // Return an empty list if the file is empty
+			}
+			return quotes;
+		}
+		else
+		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not read quote database file.");
+			return null;
+			//return new List<QuoteEntry>(); // Return an empty list if the file does not exist
+		}
+	}
+
+
+	/// <summary>
+	/// Writes quotes to a JSON file.
+	/// </summary>
+	/// <param name="filePath">The path to the JSON file.</param>
+	/// <param name="quotes">The list of quotes to write.</param>
+	/// <returns>True if successful, false otherwise.</returns>
+	public bool WriteQuotes(string filePath, List<QuoteEntry> quotes)
+	{
+		string json = JsonConvert.SerializeObject(quotes, Formatting.Indented);
+		try
+		{
+			File.WriteAllText(filePath, json);
+			return true;
+		}
+		catch
+		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not write to quote database file.");
+			return false;
+		}
+	}
+
+
+	/// <summary>
+	/// Gets the latest quote (based on Id) from a list of quotes.
+	/// </summary>
+	/// <param name="quotes">The list of quotes.</param>
+	/// <returns>The latest quote entry, or null if the list is null or empty.</returns>
+	public static QuoteEntry GetQuoteLast(List<QuoteEntry> quotes)
+	{
+		if (quotes == null || quotes.Count == 0)
+		{
+			return null; // Return null if the list is null or empty
+		}
+		return quotes
+			.Select(q => new { Quote = q, Id = int.Parse(q.Id) }) // Create list of {QuoteEntry Quote, int Id} pairs
+			.OrderByDescending(q => q.Id) // Sort list by Id in descending order
+			.Select(q => q.Quote) // Discard the int Id and keep only the QuoteEntry
+			.FirstOrDefault(); // Retrieve the first entry in the list or null if the list is empty
+	}
+
 
 	/// <summary>
 	/// Adds a new quote to the quote database.
@@ -518,7 +517,7 @@ public class CPHInline
 			return;
 		}
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Getting latest quote id");
-		var latestQuote = GetLatestQuote(quotes);
+		var latestQuote = GetQuoteLast(quotes);
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting quote id");
 		// if no last id, set id to 1
 		if (latestQuote == null || string.IsNullOrEmpty(latestQuote.Id))
