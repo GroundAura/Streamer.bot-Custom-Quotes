@@ -49,11 +49,15 @@ public class CPHInline
 				{
 					// If the next input is part of a specific command, cancel the script and let the other triggered instance of the script handle it
 					case "add":
+					case "del":
 					case "delete":
 					case "edit":
-					//case "find":
+					case "find":
 					case "get":
 					case "hide":
+					//case "last":
+					//case "list":
+					case "rand":
 					case "random":
 					case "search":
 						CPH.LogDebug("Quote Script :: Result :: Cancelled. Duplicate script instance detected.");
@@ -71,33 +75,55 @@ public class CPHInline
 			switch (command.ToLower())
 			{
 				case "!addquote":
+				case "!add quote":
 				case "!quoteadd":
 				case "!quote add":
 					// If command was 'add quote', attempt to add the quote
 					QuoteAdd();
 					break;
 				case "!delquote":
+				case "!del quote":
+				case "!deletequote":
+				case "!delete quote":
+				case "!removequote":
+				case "!remove quote":
+				case "!quotedel":
+				case "!quote del":
 				case "!quotedelete":
 				case "!quote delete":
+				case "!quoteremove":
+				case "!quote remove":
 					// If command was 'delete quote', attempt to delete the quote
 					QuoteDelete();
 					break;
 				case "!editquote":
+				case "!edit quote":
 				case "!quoteedit":
 				case "!quote edit":
 					// If command was 'edit quote', attempt to edit the quote
 					QuoteEdit();
 					break;
+				case "!findquote":
+				case "!find quote":
+				case "!quotefind":
+				case "!quote find":
 				case "!getquote":
+				case "!get quote":
 				case "!quoteget":
 				case "!quote get":
 				case "!searchquote":
+				case "!search quote":
 				case "!quotesearch":
 				case "!quote search":
 					// If command was 'get quote by search term', attempt to get a quote
 					QuoteGetSearch();
 					break;
 				case "!randquote":
+				case "!rand quote":
+				case "!randomquote":
+				case "!random quote":
+				case "!quoterand":
+				case "!quote rand":
 				case "!quoterandom":
 				case "!quote random":
 					// If command was 'get random quote', attempt to get a random quote
@@ -155,7 +181,7 @@ public class CPHInline
 		}
 
 		//CPH.LogDebug("Quote Script :: AppendQuote() :: Reading quotes from file");
-		List<QuoteEntry> quotes = ReadQuotes(filePath);
+		List<QuoteEntry> quotes = ReadQuotes();
 		if (quotes == null)
 		{
 			//CPH.LogDebug("Quote Script :: AppendQuote() :: `quotes` is null");
@@ -173,10 +199,34 @@ public class CPHInline
 	/// <summary>
 	/// Reads quotes from a JSON file.
 	/// </summary>
-	/// <param name="filePath">The path to the JSON file.</param>
-	/// <returns>A list of quote entries.</returns>
-	public static List<QuoteEntry> ReadQuotes(string filePath)
+	/// <returns>A list of quote entries, or null if the process fails.</returns>
+	public List<QuoteEntry> ReadQuotes()
 	{
+		// Get the database path
+		var args = GetActionArgs(dbArg: true);
+		if (args == null || args.Count == 0)
+		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not get quote database path.");
+			return null;
+		}
+		string filePath = args["quoteDatabasePath"];
+		if (string.IsNullOrEmpty(args["quoteDatabasePath"]))
+		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not get quote database path.");
+			return null;
+		}
+		// Attempt to create the file if it does not exist
+		if (!File.Exists(filePath))
+		{
+			var newList = new List<QuoteEntry>();
+			bool success = WriteQuotes(filePath, newList);
+			if (!success)
+			{
+				CPH.LogDebug("Quote Script :: Result :: Failed. Could not create quote database file.");
+				return null;
+			}
+		}
+		// Read the file and return the quotes
 		if (File.Exists(filePath))
 		{
 			string json = File.ReadAllText(filePath);
@@ -189,7 +239,9 @@ public class CPHInline
 		}
 		else
 		{
-			return new List<QuoteEntry>(); // Return an empty list if the file does not exist
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not read quote database file.");
+			return null;
+			//return new List<QuoteEntry>(); // Return an empty list if the file does not exist
 		}
 	}
 
@@ -199,10 +251,20 @@ public class CPHInline
 	/// </summary>
 	/// <param name="filePath">The path to the JSON file.</param>
 	/// <param name="quotes">The list of quotes to write.</param>
-	public static void WriteQuotes(string filePath, List<QuoteEntry> quotes)
+	/// <returns>True if successful, false otherwise.</returns>
+	public bool WriteQuotes(string filePath, List<QuoteEntry> quotes)
 	{
 		string json = JsonConvert.SerializeObject(quotes, Formatting.Indented);
-		File.WriteAllText(filePath, json);
+		try
+		{
+			File.WriteAllText(filePath, json);
+			return true;
+		}
+		catch
+		{
+			CPH.LogDebug("Quote Script :: Result :: Failed. Could not write to quote database file.");
+			return false;
+		}
 	}
 
 
@@ -449,12 +511,12 @@ public class CPHInline
 		// Id
 		// read file and get last id
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Reading quotes from file");
-		if (string.IsNullOrEmpty(args["quoteDatabasePath"]))
+		var quotes = ReadQuotes();
+		if (quotes == null)
 		{
-			CPH.LogDebug("Quote Script :: QuoteAdd() :: Result :: Failed. Could not get quote database path.");
+			//CPH.LogDebug("Quote Script :: QuoteAdd() :: Result :: Failed. Could not read quotes from file.");
 			return;
 		}
-		var quotes = ReadQuotes(args["quoteDatabasePath"]);
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Getting latest quote id");
 		var latestQuote = GetLatestQuote(quotes);
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting quote id");
@@ -491,6 +553,14 @@ public class CPHInline
 		// QuoteText
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Quote Text");
 		newQuoteText = args["inputContent"];
+		if (!string.IsNullOrEmpty(newQuoteText))
+		{
+			if (newQuoteText.StartsWith("\"") && newQuoteText.EndsWith("\""))
+			{
+				newQuoteText = newQuoteText.Substring(1, newQuoteText.Length - 2);
+				newQuoteText = newQuoteText.Trim();
+			}
+		}
 
 		// ScribeName & ScribeId
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Setting Scribe");
