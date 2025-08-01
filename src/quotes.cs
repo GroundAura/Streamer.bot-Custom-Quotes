@@ -38,11 +38,6 @@ public class CPHInline
 				// If no next input, get a random quote
 				QuoteGetRandom();
 			}
-			//else if (Regex.IsMatch(input0, @"^[0-9]+$"))
-			//{
-			//	// If the next input is a number, get the quote with that id
-			//	QuoteGetId();
-			//}
 			else
 			{
 				switch (input0.ToLower())
@@ -142,9 +137,36 @@ public class CPHInline
 		return true;
 	}
 
-	//////////////////////
-	// HELPER FUNCTIONS //
-	//////////////////////
+	////////////////////
+	// HELPER CLASSES //
+	////////////////////
+
+	/// <summary>
+	/// Represents a quote entry and its properties.
+	/// </summary>
+	public class QuoteEntry
+	{
+		public string Id { get; set; }
+		public bool Hidden { get; set; }
+		public string RawInputMessage { get; set; }
+		public string QuoteText { get; set; }
+		public string SpeakerType { get; set; }
+		public string SpeakerName { get; set; }
+		public string SpeakerId { get; set; }
+		public string ScribeType { get; set; }
+		public string ScribeName { get; set; }
+		public string ScribeId { get; set; }
+		public string DateTime { get; set; }
+		//public string Timestamp { get; set; }
+		public string CategoryName { get; set; }
+		public string CategoryId { get; set; }
+		public string StreamTitle { get; set; }
+	}
+
+
+	////////////////////
+	// HELPER METHODS //
+	////////////////////
 
 	/// <summary>
 	/// Returns a dictionary of relevant arguments for the action.
@@ -332,27 +354,6 @@ public class CPHInline
 		return args;
 	}
 
-	/// <summary>
-	/// Represents a quote entry and its properties.
-	/// </summary>
-	public class QuoteEntry
-	{
-		public string Id { get; set; }
-		public string RawInputMessage { get; set; }
-		public string QuoteText { get; set; }
-		public string SpeakerType { get; set; }
-		public string SpeakerName { get; set; }
-		public string SpeakerId { get; set; }
-		public string ScribeType { get; set; }
-		public string ScribeName { get; set; }
-		public string ScribeId { get; set; }
-		public string DateTime { get; set; }
-		//public string Timestamp { get; set; }
-		public string CategoryName { get; set; }
-		public string CategoryId { get; set; }
-		public string StreamTitle { get; set; }
-	}
-
 
 	/// <summary>
 	/// Appends a new quote to a JSON file.
@@ -466,6 +467,21 @@ public class CPHInline
 	}
 
 
+	public static List<QuoteEntry> FilterQuotes(List<QuoteEntry> quotes)
+	{
+		if (quotes == null || quotes.Count == 0)
+		{
+			return null; // Return null if the list is null or empty
+		}
+		var filteredQuotes = (
+			from q in quotes
+			where !string.IsNullOrEmpty(q.QuoteText) && q.Hidden == false
+			select q
+		).ToList();
+		return filteredQuotes;
+	}
+
+
 	/// <summary>
 	/// Gets the latest quote (based on Id) from a list of quotes.
 	/// </summary>
@@ -486,6 +502,7 @@ public class CPHInline
 			from q in quotes // Define the data source as a list of QuoteEntry
 			let id = int.Parse(q.Id) // Get the Id as an integer
 			orderby id descending // Order by id in descending order
+			//where !string.IsNullOrEmpty(q.QuoteText) && q.Hidden == false
 			select q // Define the result as the QuoteEntry
 		).FirstOrDefault(); // Retrieve the first result in the list or null if the list is empty
 		return latestQuote;
@@ -542,12 +559,6 @@ public class CPHInline
 	}
 
 
-	//public static List<QuoteEntry> FilterQuotes(List<QuoteEntry> quotes, string quoteQuery)
-	//{
-		
-	//}
-
-
 	/// <summary>
 	/// Adds a new quote to the quote database.
 	/// </summary>
@@ -557,20 +568,22 @@ public class CPHInline
 
 		var args = GetActionArgs(dbArg: true, inputArgs: true, streamArgs: true, userArgs: true);
 
-		if (args == null || args.Count == 0)
+		if (args == null || args.Count == 0 || string.IsNullOrEmpty(args["quoteDatabasePath"]) || string.IsNullOrEmpty(args["msgId"]))
 		{
 			CPH.LogDebug("Quote Script :: QuoteAdd() :: Result :: Failed. Could not get arguments.");
+			CPH.SendMessage("/me Error getting quotes. Check Streamerbot log for details.", true, true);
 			return;
 		}
 
 		if (args["isModerator"] != "True" && args["isVip"] != "True")
 		{
-			CPH.TwitchReplyToMessage("Sorry, only Moderators and VIPs can add quotes.", args["msgId"], true, true);
 			CPH.LogDebug("Quote Script :: QuoteAdd() :: Result :: Cancelled. User does not have the required permissions.");
+			CPH.TwitchReplyToMessage("Sorry, only Moderators and VIPs can add quotes.", args["msgId"], true, true);
 			return;
 		}
 
 		string newId;
+		bool hidden = false;
 		string newRawInputMessage;
 		string newSpeakerName;
 		string newSpeakerType;
@@ -592,6 +605,7 @@ public class CPHInline
 		if (quotes == null)
 		{
 			//CPH.LogDebug("Quote Script :: QuoteAdd() :: Result :: Failed. Could not read quotes from file.");
+			CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
 			return;
 		}
 		//CPH.LogDebug("Quote Script :: QuoteAdd() :: Getting latest quote id");
@@ -727,6 +741,7 @@ public class CPHInline
 		var newQuote = new QuoteEntry
 		{
 			Id = newId,
+			Hidden = hidden,
 			RawInputMessage = newRawInputMessage,
 			QuoteText = newQuoteText,
 			SpeakerType = newSpeakerType,
@@ -770,7 +785,64 @@ public class CPHInline
 	/// </summary>
 	public void QuoteDelete()
 	{
-		CPH.SendMessage("Command Triggered: Quote (Delete)", true, true);
+		var args = GetActionArgs(cmdArgs: true, dbArg: true, inputArgs: true, streamArgs: true, userArgs: true);
+		if (args == null || args.Count == 0 || string.IsNullOrEmpty(args["quoteDatabasePath"]) || string.IsNullOrEmpty(args["msgId"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteDelete() :: Result :: Failed. Could not get arguments.");
+			CPH.SendMessage("/me Error getting quotes. Check Streamerbot log for details.", true, true);
+			return;
+		}
+
+		if (args["isModerator"] != "True" || args["userId"] != args["broadcastUserId"])
+		{
+			CPH.LogDebug("Quote Script :: QuoteDelete() :: Result :: Cancelled. User does not have the required permissions.");
+			CPH.TwitchReplyToMessage("Sorry, only the Streamer can delete quotes.", args["msgId"], true, true);
+			return;
+		}
+
+		var quotes = ReadQuotes(args["quoteDatabasePath"]);
+		if (quotes == null)
+		{
+			CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
+			return;
+		}
+
+		//
+		string quoteQuery = args["rawInput"];
+		if (string.IsNullOrEmpty(quoteQuery))
+		{
+			CPH.TwitchReplyToMessage($"/me Command usage: `{args["command"]} <id|'latest'>`. Example: `{args["command"]} 1`.", args["msgId"], true, true);
+			return;
+		}
+
+		QuoteEntry quote = null;
+		if (Regex.IsMatch(quoteQuery, @"^[0-9]+$"))
+		{
+			quote = GetQuoteById(quotes, quoteQuery);
+			if (quote == null)
+			{
+				CPH.TwitchReplyToMessage($"/me No quote with ID #{quoteQuery} found.", args["msgId"], true, true);
+				return;
+			}
+		}
+		else if (quoteQuery.ToLower() == "latest")
+		{
+			quote = GetQuoteLatestById(quotes);
+			if (quote == null)
+			{
+				CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
+				return;
+			}
+		}
+		else
+		{
+			CPH.TwitchReplyToMessage($"/me Command usage: `{args["command"]} <id|'latest'>`. Example: `{args["command"]} 1`.", args["msgId"], true, true);
+			return;
+		}
+
+		quotes.Remove(quote);
+		WriteQuotes(args["quoteDatabasePath"], quotes);
+		CPH.TwitchReplyToMessage($"/me Quote #{quote.Id} removed.", args["msgId"], true, true);
 	}
 
 
@@ -780,7 +852,85 @@ public class CPHInline
 	/// <param name="filePath">The path to the JSON file.</param>
 	public void QuoteEdit()
 	{
-		CPH.SendMessage("Command Triggered: Quote (Edit)", true, true);
+		var args = GetActionArgs(cmdArgs: true, dbArg: true, inputArgs: true, userArgs: true);
+		if (args == null || args.Count == 0 || string.IsNullOrEmpty(args["quoteDatabasePath"]) || string.IsNullOrEmpty(args["msgId"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteEdit() :: Result :: Failed. Could not get arguments.");
+			CPH.SendMessage("/me Error getting quotes. Check Streamerbot log for details.", true, true);
+			return;
+		}
+
+		if (args["isModerator"] != "True")
+		{
+			CPH.LogDebug("Quote Script :: QuoteEdit() :: Result :: Cancelled. User does not have the required permissions.");
+			CPH.TwitchReplyToMessage("Sorry, only Moderators can edit quotes.", args["msgId"], true, true);
+			return;
+		}
+
+		var quotes = ReadQuotes(args["quoteDatabasePath"]);
+		if (quotes == null)
+		{
+			CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
+			return;
+		}
+
+		string quoteQuery = args["rawInput"];
+		if (string.IsNullOrEmpty(quoteQuery))
+		{
+			CPH.TwitchReplyToMessage($"/me Command usage: `{args["command"]} <id|'latest'> <quote>`. Example: `{args["command"]} 1 Test quote`.", args["msgId"], true, true);
+			return;
+		}
+		string[] querySplit = quoteQuery.Split(' ');
+		if (querySplit.Length < 2)
+		{
+			CPH.TwitchReplyToMessage($"/me Command usage: `{args["command"]} <id|'latest'> <quote>`. Example: `{args["command"]} 1 Test quote`.", args["msgId"], true, true);
+			return;
+		}
+		string quoteQueryId = querySplit[0];
+		string quoteNewText = string.Join(" ", querySplit, 1, querySplit.Length - 1);
+
+		QuoteEntry quote = null;
+		if (Regex.IsMatch(quoteQueryId, @"^[0-9]+$"))
+		{
+			quote = GetQuoteById(quotes, quoteQueryId);
+			if (quote == null)
+			{
+				CPH.TwitchReplyToMessage($"/me No quote with ID #{quoteQueryId} found.", args["msgId"], true, true);
+				return;
+			}
+		}
+		else if (quoteQueryId.ToLower() == "latest")
+		{
+			quote = GetQuoteLatestById(quotes);
+			if (quote == null)
+			{
+				CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
+				return;
+			}
+		}
+		else
+		{
+			CPH.TwitchReplyToMessage($"/me Command usage: `{args["command"]} <id|'latest'> <quote>`. Example: `{args["command"]} 1 Test quote`.", args["msgId"], true, true);
+			return;
+		}
+
+		quote.QuoteText = quoteNewText;
+		WriteQuotes(args["quoteDatabasePath"], quotes);
+
+		string speakerOperator = "";
+		if (quote.SpeakerType == "twitch")
+		{
+			speakerOperator = "@";
+		}
+		else if (quote.SpeakerType == "character")
+		{
+			speakerOperator = "^";
+		}
+		else if (quote.SpeakerType == null && string.IsNullOrEmpty(quote.SpeakerName))
+		{
+			speakerOperator = "?";
+		}
+		CPH.TwitchReplyToMessage($"/me Quote #{quote.Id} Updated: \" {quote.QuoteText} \" - {speakerOperator}{quote.SpeakerName}", args["msgId"], true, true);
 	}
 
 
@@ -801,21 +951,25 @@ public class CPHInline
 	public void QuoteGetRandom()
 	{
 		var args = GetActionArgs(dbArg: true, userArgs: true);
-		if (args == null || args.Count == 0)
+		if (args == null || args.Count == 0 || string.IsNullOrEmpty(args["quoteDatabasePath"]) || string.IsNullOrEmpty(args["msgId"]))
 		{
 			CPH.LogDebug("Quote Script :: QuoteGetRandom() :: Result :: Failed. Could not get arguments.");
+			CPH.SendMessage("/me Error getting quotes. Check Streamerbot log for details.", true, true);
 			return;
 		}
 
 		var quotes = ReadQuotes(args["quoteDatabasePath"]);
+		quotes = FilterQuotes(quotes);
 		if (quotes == null)
 		{
+			CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
 			return;
 		}
 
 		var quote = GetQuoteRandom(quotes);
 		if (quote == null)
 		{
+			CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
 			return;
 		}
 
@@ -836,21 +990,25 @@ public class CPHInline
 	public void QuoteGetSearch()
 	{
 		var args = GetActionArgs(dbArg: true, inputArgs: true, userArgs: true);
-		if (args == null || args.Count == 0)
+		if (args == null || args.Count == 0 || string.IsNullOrEmpty(args["quoteDatabasePath"]) || string.IsNullOrEmpty(args["msgId"]))
 		{
 			CPH.LogDebug("Quote Script :: QuoteGetRandom() :: Result :: Failed. Could not get arguments.");
+			CPH.SendMessage("/me Error getting quotes. Check Streamerbot log for details.", true, true);
 			return;
 		}
 
 		var quotes = ReadQuotes(args["quoteDatabasePath"]);
+		quotes = FilterQuotes(quotes);
 		if (quotes == null)
 		{
+			CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
 			return;
 		}
 
 		string quoteQuery = args["rawInput"];
 		if (string.IsNullOrEmpty(quoteQuery))
 		{
+			CPH.TwitchReplyToMessage($"/me Command usage: `{args["command"]} <id|'latest'|term>`. Example: `{args["command"]} 1`.", args["msgId"], true, true);
 			return;
 		}
 
@@ -861,6 +1019,15 @@ public class CPHInline
 			if (quote == null)
 			{
 				CPH.TwitchReplyToMessage($"/me No quote with ID #{quoteQuery} found.", args["msgId"], true, true);
+				return;
+			}
+		}
+		else if (quoteQuery.ToLower() == "latest")
+		{
+			quote = GetQuoteLatestById(quotes);
+			if (quote == null)
+			{
+				CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
 				return;
 			}
 		}
@@ -890,7 +1057,73 @@ public class CPHInline
 	/// <param name="filePath">The path to the JSON file.</param>
 	public void QuoteHide()
 	{
-		CPH.SendMessage("Command Triggered: Quote (Hide)", true, true);
+		var args = GetActionArgs(cmdArgs: true, dbArg: true, inputArgs: true, userArgs: true);
+		if (args == null || args.Count == 0 || string.IsNullOrEmpty(args["quoteDatabasePath"]) || string.IsNullOrEmpty(args["msgId"]))
+		{
+			CPH.LogDebug("Quote Script :: QuoteHide() :: Result :: Failed. Could not get arguments.");
+			CPH.SendMessage("/me Error getting quotes. Check Streamerbot log for details.", true, true);
+			return;
+		}
+
+		if (args["isModerator"] != "True")
+		{
+			CPH.LogDebug("Quote Script :: QuoteHide() :: Result :: Cancelled. User does not have the required permissions.");
+			CPH.TwitchReplyToMessage("Sorry, only Moderators can edit quotes.", args["msgId"], true, true);
+			return;
+		}
+
+		var quotes = ReadQuotes(args["quoteDatabasePath"]);
+		if (quotes == null)
+		{
+			CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
+			return;
+		}
+
+		string quoteQuery = args["rawInput"];
+		if (string.IsNullOrEmpty(quoteQuery))
+		{
+			CPH.TwitchReplyToMessage($"/me Command usage: `{args["command"]} <id|'latest'>`. Example: `{args["command"]} 1`.", args["msgId"], true, true);
+			return;
+		}
+
+		QuoteEntry quote = null;
+		if (Regex.IsMatch(quoteQuery, @"^[0-9]+$"))
+		{
+			quote = GetQuoteById(quotes, quoteQuery);
+			if (quote == null)
+			{
+				CPH.TwitchReplyToMessage($"/me No quote with ID #{quoteQuery} found.", args["msgId"], true, true);
+				return;
+			}
+		}
+		else if (quoteQuery.ToLower() == "latest")
+		{
+			quote = GetQuoteLatestById(quotes);
+			if (quote == null)
+			{
+				CPH.TwitchReplyToMessage("/me No quotes found.", args["msgId"], true, true);
+				return;
+			}
+		}
+		else
+		{
+			CPH.TwitchReplyToMessage($"/me Command usage: `{args["command"]} <id|'latest'>`. Example: `{args["command"]} 1`.", args["msgId"], true, true);
+			return;
+		}
+
+		if (quote.Hidden == true)
+		{
+			CPH.TwitchReplyToMessage($"/me Quote #{quote.Id} is already hidden.", args["msgId"], true, true);
+			//quote.Hidden = false;
+			//WriteQuotes(args["quoteDatabasePath"], quotes);
+			//CPH.TwitchReplyToMessage($"/me Quote #{quote.Id} unhidden.", args["msgId"], true, true);
+		}
+		else // if (quote.Hidden == false || quote.Hidden == null)
+		{
+			quote.Hidden = true;
+			WriteQuotes(args["quoteDatabasePath"], quotes);
+			CPH.TwitchReplyToMessage($"/me Quote #{quote.Id} hidden.", args["msgId"], true, true);
+		}
 	}
 
 }
